@@ -1,0 +1,92 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  passwordHash String
+  name         String
+  properties   Property[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model Property {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  address     String
+  description String?
+  units       Unit[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Unit {
+  id          String    @id @default(cuid())
+  propertyId  String
+  property    Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  unitNumber  String
+  monthlyRent Decimal   @db.Decimal(10, 2)
+  bedrooms    Int?
+  bathrooms   Decimal?  @db.Decimal(3, 1)
+  tenants     Tenant[]
+  payments    Payment[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([propertyId, unitNumber])
+}
+
+model Tenant {
+  id         String       @id @default(cuid())
+  unitId     String
+  unit       Unit         @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  name       String
+  email      String?
+  phone      String?
+  leaseStart DateTime     @db.Date
+  leaseEnd   DateTime     @db.Date
+  status     TenantStatus @default(active)
+  payments   Payment[]
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+}
+
+model Payment {
+  id        String        @id @default(cuid())
+  tenantId  String
+  tenant    Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  unitId    String
+  unit      Unit          @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  amount    Decimal       @db.Decimal(10, 2)
+  dueDate   DateTime      @db.Date
+  paidDate  DateTime?     @db.Date
+  status    PaymentStatus @default(pending)
+  notes     String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([tenantId])
+  @@index([unitId])
+  @@index([status])
+  @@index([dueDate])
+}
+
+enum TenantStatus {
+  active
+  past
+}
+
+enum PaymentStatus {
+  pending
+  paid
+  late
+}
